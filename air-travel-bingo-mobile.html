@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Air Travel Bingo</title>
+
+<style>
+:root {
+  --border: 1px solid #222;
+  --radius: 14px;
+  --gap: 8px;
+  --cellMinH: 72px;
+}
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Arial, sans-serif;
+}
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 10px 12px calc(10px + env(safe-area-inset-top));
+  background: #fff;
+  border-bottom: var(--border);
+}
+.row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+button {
+  padding: 12px 14px;
+  font-size: 16px;
+  border: var(--border);
+  border-radius: 12px;
+  background: #fff;
+}
+.seg {
+  display: flex;
+  border: var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.seg button {
+  border: none;
+  border-right: var(--border);
+  border-radius: 0;
+}
+.seg button:last-child { border-right: none; }
+.seg .active {
+  background: #111;
+  color: #fff;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: var(--border);
+  border-radius: 999px;
+}
+.big { font-size: 18px; font-weight: 800; }
+
+.content {
+  padding: 14px 12px 24px;
+}
+.titleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.status {
+  font-weight: 800;
+}
+.status.muted {
+  opacity: .65;
+  font-weight: 600;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--gap);
+}
+.cell {
+  border: var(--border);
+  border-radius: 14px;
+  padding: 10px 8px;
+  min-height: var(--cellMinH);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1.15;
+  user-select: none;
+}
+.cell.marked { background: #d7ffd7; }
+.cell.free {
+  background: #e8f0ff;
+  font-weight: 900;
+}
+.cell.win {
+  outline: 4px solid gold;
+}
+@media (min-width: 390px) {
+  :root { --cellMinH: 78px; }
+  .cell { font-size: 14px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="top">
+  <div class="row" style="justify-content: space-between;">
+    <div class="seg" id="playerToggle">
+      <button data-player="p1" class="active">Player 1</button>
+      <button data-player="p2">Player 2</button>
+    </div>
+    <div class="pill">Air Travel Bingo</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="titleRow">
+    <div class="big" id="boardTitle">Player 1 Card</div>
+    <div id="status" class="status muted">No bingo</div>
+  </div>
+
+  <div id="grid" class="grid"></div>
+</div>
+
+<script>
+const TERMS = [
+  "Mask",
+  "Military in uniform",
+  "Girl in oversized college hoodie",
+  "Sassy Black flight attendant",
+  "Overhead bin debacle",
+  "White-knuckle flier",
+  "Crocs",
+  "Stands up while seatbelt light is on",
+  "Unintelligible gate announcement",
+  "Couple holding hands",
+  "Griswold family vacation",
+  "Religious habit, clerics, or Orthodox Jew",
+  "S’barro",
+  "Neck pillow",
+  "Wrapped in a blanket",
+  "Pillow from home",
+  "Vera Bradley bag",
+  "Wrong seat",
+  "Wrong plane",
+  "Hiking gear",
+  "Track suit",
+  "Camel toe",
+  "Ten-gallon hat",
+  "Santa hat",
+  "Nipples",
+  "Ass-Print sweatpants",
+  "Divorced dad with kids"
+];
+
+let boards = {};
+let activePlayer = "p1";
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function makeBoard() {
+  const items = shuffle([...TERMS]).slice(0, 24);
+  items.splice(12, 0, "FREE");
+  return {
+    grid: items,
+    marked: Array(25).fill(false).map((_, i) => i === 12),
+    win: []
+  };
+}
+
+function makeSecondBoard(first) {
+  let b;
+  do { b = makeBoard(); }
+  while (b.grid.some((v, i) => v !== "FREE" && v === first.grid[i]));
+  return b;
+}
+
+function findWin(b) {
+  const m = b.marked;
+  const lines = [
+    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],
+    [15,16,17,18,19],[20,21,22,23,24],
+    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],
+    [3,8,13,18,23],[4,9,14,19,24],
+    [0,6,12,18,24],[4,8,12,16,20]
+  ];
+  for (const l of lines) {
+    if (l.every(i => m[i])) return l;
+  }
+  return [];
+}
+
+function checkWins() {
+  boards.p1.win = findWin(boards.p1);
+  boards.p2.win = findWin(boards.p2);
+}
+
+function render() {
+  const b = boards[activePlayer];
+  document.getElementById("boardTitle").textContent =
+    (activePlayer === "p1" ? "Player 1" : "Player 2") + " Card";
+
+  document.getElementById("status").textContent =
+    b.win.length ? "BINGO! 🎉" : "No bingo";
+
+  document.getElementById("status").className =
+    "status " + (b.win.length ? "" : "muted");
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  b.grid.forEach((v, i) => {
+    const d = document.createElement("div");
+    d.className = "cell";
+    if (v === "FREE") d.classList.add("free");
+    if (b.marked[i]) d.classList.add("marked");
+    if (b.win.includes(i)) d.classList.add("win");
+    d.textContent = v === "FREE" ? "★ FREE ★" : v;
+    d.onclick = () => {
+      if (v === "FREE") return;
+      b.marked[i] = !b.marked[i];
+      checkWins();
+      render();
+    };
+    grid.appendChild(d);
+  });
+}
+
+document.getElementById("playerToggle").onclick = e => {
+  const btn = e.target.closest("button[data-player]");
+  if (!btn) return;
+  activePlayer = btn.dataset.player;
+  [...document.querySelectorAll("#playerToggle button")]
+    .forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  render();
+};
+
+boards.p1 = makeBoard();
+boards.p2 = makeSecondBoard(boards.p1);
+checkWins();
+render();
+</script>
+
+</body>
+</html>
