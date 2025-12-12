@@ -6,122 +6,65 @@
 <title>Air Travel Bingo</title>
 
 <style>
-:root {
-  --border: 1px solid #222;
-  --radius: 14px;
-  --gap: 8px;
-  --cellMinH: 72px;
-}
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, Arial, sans-serif;
-}
-.top {
-  position: sticky;
-  top: 0;
-  z-index: 20;
+:root { --border: 1px solid #222; --gap: 8px; --cellMinH: 72px; }
+body { margin:0; font-family: system-ui, -apple-system, Arial, sans-serif; background:#fff; }
+.top{
+  position: sticky; top: 0; z-index: 20;
   padding: 10px 12px calc(10px + env(safe-area-inset-top));
-  background: #fff;
-  border-bottom: var(--border);
+  background:#fff; border-bottom: var(--border);
 }
-.row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
+.row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+button{
+  padding: 12px 14px; font-size: 16px;
+  border: var(--border); border-radius: 12px; background:#fff;
 }
-button {
-  padding: 12px 14px;
-  font-size: 16px;
-  border: var(--border);
-  border-radius: 12px;
-  background: #fff;
-}
-.seg {
-  display: flex;
-  border: var(--border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-.seg button {
-  border: none;
-  border-right: var(--border);
-  border-radius: 0;
-}
-.seg button:last-child { border-right: none; }
-.seg .active {
-  background: #111;
-  color: #fff;
-}
-.pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: var(--border);
-  border-radius: 999px;
-}
-.big { font-size: 18px; font-weight: 800; }
+button:active{ transform: scale(0.98); }
+.seg{ display:flex; border: var(--border); border-radius: 12px; overflow:hidden; }
+.seg button{ border:none; border-right: var(--border); border-radius:0; }
+.seg button:last-child{ border-right:none; }
+.seg .active{ background:#111; color:#fff; }
+.pill{ display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border: var(--border); border-radius: 999px; }
+.big{ font-size:18px; font-weight:800; }
 
-.content {
-  padding: 14px 12px 24px;
+.content{ padding: 14px 12px 24px; }
+.titleRow{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.status{ font-weight:800; }
+.status.muted{ opacity:.65; font-weight:600; }
+
+.grid{ display:grid; grid-template-columns: repeat(5, 1fr); gap: var(--gap); }
+.cell{
+  border: var(--border); border-radius: 14px;
+  padding: 10px 8px; min-height: var(--cellMinH);
+  display:flex; align-items:center; justify-content:center;
+  text-align:center; font-weight:700; font-size:13px; line-height:1.15;
+  user-select:none; -webkit-tap-highlight-color: transparent;
 }
-.titleRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.status {
-  font-weight: 800;
-}
-.status.muted {
-  opacity: .65;
-  font-weight: 600;
-}
-.grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: var(--gap);
-}
-.cell {
-  border: var(--border);
-  border-radius: 14px;
-  padding: 10px 8px;
-  min-height: var(--cellMinH);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-weight: 700;
-  font-size: 13px;
-  line-height: 1.15;
-  user-select: none;
-}
-.cell.marked { background: #d7ffd7; }
-.cell.free {
-  background: #e8f0ff;
-  font-weight: 900;
-}
-.cell.win {
-  outline: 4px solid gold;
-}
-@media (min-width: 390px) {
-  :root { --cellMinH: 78px; }
-  .cell { font-size: 14px; }
+.cell.marked{ background:#d7ffd7; }
+.cell.free{ background:#e8f0ff; font-weight:900; }
+.cell.win{ outline: 4px solid gold; }
+
+.hint{ font-size:12px; opacity:.7; margin-top:10px; }
+
+@media (min-width: 390px){
+  :root{ --cellMinH: 78px; }
+  .cell{ font-size:14px; }
 }
 </style>
 </head>
 
 <body>
-
 <div class="top">
-  <div class="row" style="justify-content: space-between;">
-    <div class="seg" id="playerToggle">
+  <div class="row">
+    <div id="playerToggle" class="seg" aria-label="Player toggle">
       <button data-player="p1" class="active">Player 1</button>
       <button data-player="p2">Player 2</button>
     </div>
     <div class="pill">Air Travel Bingo</div>
+  </div>
+
+  <div class="row" style="margin-top:10px; justify-content:flex-start;">
+    <button id="newBtn">New Card</button>
+    <button id="resetMarksBtn">Clear Marks</button>
   </div>
 </div>
 
@@ -131,10 +74,12 @@ button {
     <div id="status" class="status muted">No bingo</div>
   </div>
 
-  <div id="grid" class="grid"></div>
+  <div id="grid" class="grid" aria-label="Bingo board"></div>
+  <div class="hint" id="hint">Auto-saves on this device. Works offline after first load.</div>
 </div>
 
 <script>
+/** --------- Your content --------- **/
 const TERMS = [
   "Mask",
   "Military in uniform",
@@ -165,99 +110,188 @@ const TERMS = [
   "Divorced dad with kids"
 ];
 
-let boards = {};
-let activePlayer = "p1";
+/** --------- Player lock via URL param ---------
+  Use:
+    ?p=1  => locked to Player 1
+    ?p=2  => locked to Player 2
+  If no param, unlocked (toggle visible).
+**/
+const params = new URLSearchParams(location.search);
+const lockParam = params.get("p");
+const lockedPlayer = (lockParam === "1") ? "p1" : (lockParam === "2") ? "p2" : null;
+let activePlayer = lockedPlayer || "p1";
 
-function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+/** --------- Persistence ---------
+  Per-device AND per-player when locked.
+**/
+const STORAGE_KEY = (() => {
+  const base = "airbingo:v2:" + location.pathname;
+  return lockedPlayer ? `${base}:${lockedPlayer}` : base;
+})();
+
+function saveState() {
+  const payload = { activePlayer, boards };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch(e){}
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.boards) return null;
+    return parsed;
+  } catch(e){ return null; }
+}
+
+/** --------- Helpers --------- **/
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
   }
   return a;
 }
 
-function makeBoard() {
-  const items = shuffle([...TERMS]).slice(0, 24);
-  items.splice(12, 0, "FREE");
-  return {
-    grid: items,
-    marked: Array(25).fill(false).map((_, i) => i === 12),
-    win: []
-  };
+function makeBoard(){
+  const items = shuffle([...TERMS]).slice(0,24);
+  items.splice(12,0,"FREE");
+  return { grid: items, marked: Array(25).fill(false).map((_,i)=> i===12), win: [] };
 }
 
-function makeSecondBoard(first) {
-  let b;
-  do { b = makeBoard(); }
-  while (b.grid.some((v, i) => v !== "FREE" && v === first.grid[i]));
-  return b;
+// One device is only ever showing ONE player when locked, so we only need one board then.
+// If unlocked, we keep both boards (your original behavior).
+function newGameState(){
+  if (lockedPlayer) {
+    return { [lockedPlayer]: makeBoard() };
+  } else {
+    const p1 = makeBoard();
+    let p2;
+    do { p2 = makeBoard(); } while (p2.grid.some((v,i)=> v!=="FREE" && v===p1.grid[i]));
+    return { p1, p2 };
+  }
 }
 
-function findWin(b) {
-  const m = b.marked;
-  const lines = [
-    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],
-    [15,16,17,18,19],[20,21,22,23,24],
-    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],
-    [3,8,13,18,23],[4,9,14,19,24],
+function findWin(b){
+  const m=b.marked;
+  const lines=[
+    [0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],
+    [0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],
     [0,6,12,18,24],[4,8,12,16,20]
   ];
-  for (const l of lines) {
-    if (l.every(i => m[i])) return l;
-  }
+  for(const l of lines){ if(l.every(i=>m[i])) return l; }
   return [];
 }
 
-function checkWins() {
-  boards.p1.win = findWin(boards.p1);
-  boards.p2.win = findWin(boards.p2);
+function checkWins(){
+  if (lockedPlayer) {
+    boards[lockedPlayer].win = findWin(boards[lockedPlayer]);
+  } else {
+    boards.p1.win = findWin(boards.p1);
+    boards.p2.win = findWin(boards.p2);
+  }
 }
 
-function render() {
-  const b = boards[activePlayer];
-  document.getElementById("boardTitle").textContent =
-    (activePlayer === "p1" ? "Player 1" : "Player 2") + " Card";
-
-  document.getElementById("status").textContent =
-    b.win.length ? "BINGO! 🎉" : "No bingo";
-
-  document.getElementById("status").className =
-    "status " + (b.win.length ? "" : "muted");
-
-  const grid = document.getElementById("grid");
-  grid.innerHTML = "";
-  b.grid.forEach((v, i) => {
-    const d = document.createElement("div");
-    d.className = "cell";
-    if (v === "FREE") d.classList.add("free");
-    if (b.marked[i]) d.classList.add("marked");
-    if (b.win.includes(i)) d.classList.add("win");
-    d.textContent = v === "FREE" ? "★ FREE ★" : v;
-    d.onclick = () => {
-      if (v === "FREE") return;
-      b.marked[i] = !b.marked[i];
-      checkWins();
-      render();
-    };
-    grid.appendChild(d);
+function setToggleUI(){
+  const toggle = document.getElementById("playerToggle");
+  if (lockedPlayer) {
+    toggle.style.display = "none";
+    document.getElementById("hint").textContent =
+      `Locked to ${lockedPlayer === "p1" ? "Player 1" : "Player 2"} on this device. Auto-saves. Works offline after first load.`;
+    return;
+  }
+  toggle.style.display = "";
+  document.querySelectorAll("#playerToggle button").forEach(btn=>{
+    btn.classList.toggle("active", btn.dataset.player === activePlayer);
   });
 }
 
-document.getElementById("playerToggle").onclick = e => {
+function render(){
+  const b = boards[activePlayer];
+  document.getElementById("boardTitle").textContent =
+    (activePlayer==="p1" ? "Player 1" : "Player 2") + " Card";
+
+  const statusEl = document.getElementById("status");
+  statusEl.textContent = b.win.length ? "BINGO! 🎉" : "No bingo";
+  statusEl.className = "status " + (b.win.length ? "" : "muted");
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  b.grid.forEach((v,i)=>{
+    const d = document.createElement("div");
+    d.className = "cell";
+    if (v==="FREE") d.classList.add("free");
+    if (b.marked[i]) d.classList.add("marked");
+    if (b.win.includes(i)) d.classList.add("win");
+    d.textContent = (v==="FREE") ? "★ FREE ★" : v;
+
+    d.addEventListener("click", ()=>{
+      if (v==="FREE") return;
+      b.marked[i] = !b.marked[i];
+      checkWins();
+      saveState();
+      render();
+    }, {passive:true});
+
+    grid.appendChild(d);
+  });
+
+  setToggleUI();
+}
+
+/** --------- Events --------- **/
+document.getElementById("playerToggle").addEventListener("click", (e)=>{
+  if (lockedPlayer) return;
   const btn = e.target.closest("button[data-player]");
-  if (!btn) return;
+  if(!btn) return;
   activePlayer = btn.dataset.player;
-  [...document.querySelectorAll("#playerToggle button")]
-    .forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
+  saveState();
   render();
-};
+});
 
-boards.p1 = makeBoard();
-boards.p2 = makeSecondBoard(boards.p1);
-checkWins();
-render();
+document.getElementById("newBtn").addEventListener("click", ()=>{
+  boards = newGameState();
+  activePlayer = lockedPlayer || "p1";
+  checkWins();
+  saveState();
+  render();
+});
+
+document.getElementById("resetMarksBtn").addEventListener("click", ()=>{
+  const b = boards[activePlayer];
+  b.marked = b.marked.map((_,i)=> i===12);
+  b.win = [];
+  checkWins();
+  saveState();
+  render();
+});
+
+/** --------- Init --------- **/
+let boards = {};
+const saved = loadState();
+if (saved && saved.boards) {
+  boards = saved.boards;
+
+  // In locked mode, enforce activePlayer and ensure the locked board exists.
+  if (lockedPlayer) {
+    activePlayer = lockedPlayer;
+    if (!boards[lockedPlayer]) boards = newGameState();
+  } else {
+    activePlayer = saved.activePlayer || "p1";
+    if (!boards.p1 || !boards.p2) boards = newGameState();
+  }
+
+  // Ensure FREE marked
+  if (boards[activePlayer]?.marked?.length === 25) boards[activePlayer].marked[12] = true;
+
+  checkWins();
+  render();
+} else {
+  boards = newGameState();
+  activePlayer = lockedPlayer || "p1";
+  checkWins();
+  saveState();
+  render();
+}
 </script>
-
 </body>
 </html>
